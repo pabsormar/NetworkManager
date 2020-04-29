@@ -5,17 +5,23 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.bumptech.glide.Glide;
 
+import org.deafsapps.android.networkmanager.domain.JokeCategoriesResponse;
 import org.deafsapps.android.networkmanager.domain.JokeItem;
 import org.deafsapps.android.networkmanager.domain.JokeItemResponse;
+import org.deafsapps.android.networkmanager.domain.JokesCountResponse;
 import org.deafsapps.android.networkmanager.service.IcndbService;
 
 import retrofit2.Call;
@@ -26,12 +32,16 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
+    private TextView tvJoke;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         final ImageView imgProfile = findViewById(R.id.activity_main__img__profile);
+
+        tvJoke = findViewById(R.id.activity_main__tv__joke);
 
         final Button btnLoadImage = findViewById(R.id.activity_main__btn__load_image);
         btnLoadImage.setOnClickListener(new View.OnClickListener() {
@@ -52,30 +62,76 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // inflate the 'Menu' layout
+        getMenuInflater().inflate(R.menu.menu_options, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.item_db_info) {
+            Log.i("Menu option", "Item: " + item.getTitle());
+            requestJokeDbInformation();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void requestJokeDbInformation() {
+        final Retrofit retrofitInstance = getIcndbRetrofitInstance();
+
+        Call<JokesCountResponse> countCall = retrofitInstance.create(IcndbService.class).fetchJokesCount();
+        Call<JokeCategoriesResponse> categoriesCall = retrofitInstance.create(IcndbService.class).fetchJokeCategories();
+
+        Response<JokesCountResponse> countResponse = countCall.execute();
+        Response<JokeCategoriesResponse> categoriesResponse = categoriesCall.execute();
+
+        if (countResponse.isSuccessful() && categoriesResponse.isSuccessful()) {
+            // show the info in a 'Dialog' or similar
+
+        } else {
+            // an error took place
+        }
+
+    }
+
     private void requestRandomJokeWithReplacedNameFromService(String firstName, String lastName) {
         // request configuration
-        Retrofit retrofitInstance = new Retrofit.Builder()
-                .baseUrl("http://api.icndb.com/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        Call<JokeItemResponse> randomJokeCall = retrofitInstance.create(IcndbService.class).fetchRandomJoke();
+        final Retrofit retrofitInstance = getIcndbRetrofitInstance();
+        Call<JokeItemResponse> randomJokeCall = retrofitInstance.create(IcndbService.class).fetchRandomJoke(firstName, lastName);
         // request invocation
-        randomJokeCall.enqueue(new Callback<JokeItemResponse>() {
+        Thread workerThread = new Thread(new Runnable() {
             @Override
-            public void onResponse(Call<JokeItemResponse> call, Response<JokeItemResponse> response) {
-                if (response.isSuccessful()) {
-                    loadDataIntoView(response.body().getJokeItem());
-                } else {
-                    displayError(response.errorBody().toString());
-                }
-            }
+            public void run() {
+                // asynchronous call
+                randomJokeCall.enqueue(new Callback<JokeItemResponse>() {
+                    @Override
+                    public void onResponse(Call<JokeItemResponse> call, Response<JokeItemResponse> response) {
+                        if (response.isSuccessful()) {
+                            loadDataIntoView(response.body().getJokeItem());
+                        } else {
+                            displayError(response.errorBody().toString());
+                        }
+                    }
 
-            @Override
-            public void onFailure(Call<JokeItemResponse> call, Throwable t) {
-                displayError("Error when fetching data");
-                t.printStackTrace();
+                    @Override
+                    public void onFailure(Call<JokeItemResponse> call, Throwable t) {
+                        displayError("Error when fetching data");
+                        t.printStackTrace();
+                    }
+                });
             }
         });
+        workerThread.start();
+    }
+
+    private Retrofit getIcndbRetrofitInstance() {
+        return new Retrofit.Builder()
+                    .baseUrl("http://api.icndb.com/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
     }
 
     private void displayError(String errorString) {
@@ -84,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadDataIntoView(JokeItem jokeItem) {
         Toast.makeText(this, jokeItem.getJoke(), Toast.LENGTH_LONG).show();
+        tvJoke.setText(jokeItem.getJoke());
     }
 
     private void loadImageIntoImageView(ImageView imageView) {

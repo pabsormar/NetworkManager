@@ -42,4 +42,18 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/activity_main__btn__load_image"
         app:layout_constraintStart_toStartOf="@+id/activity_main__btn__load_image" />
+
+    <TextView
+        android:id="@+id/activity_main__tv__joke"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:textColor="@android:color/black"
+        app:layout_constraintBottom_toTopOf="@+id/activity_main__btn__load_data"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/activity_main__btn__load_image"
+        tools:text="This is fun!" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
